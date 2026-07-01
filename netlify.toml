@@ -1,0 +1,6 @@
+[build]
+  command = "git clone https://github.com/flutter/flutter.git --branch stable --depth 1 && export PATH=\"$PATH:$(pwd)/flutter/bin\" && flutter config --enable-web && flutter pub get && flutter build web --no-tree-shake-icons"
+  publish = "build/web"
+
+[build.environment]
+  FLUTTER_ROOT = "flutter"

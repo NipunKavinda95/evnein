@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1043646912719",
+    "project_id": "evnein",
+    "storage_bucket": "evnein.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1043646912719:android:44f521206d47b64ab4ffba",
+        "android_client_info": {
+          "package_name": "com.evnein.evnein"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFNzVRdNrC9iGY-CYJNGcgOW1Fu734ez4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -7,6 +7,7 @@ import '../../../features/products/product_provider.dart';
 import '../billing_provider.dart';
 import '../widgets/bill_summary_sheet.dart';
 import '../../../data/models/bill_model.dart';
+import '../../../features/products/category_provider.dart';
 
 class BillingScreen extends ConsumerWidget {
   const BillingScreen({super.key});
@@ -23,13 +24,13 @@ class BillingScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.lightBg,
       appBar: AppBar(
         title: const Text(
           'New Bill',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: AppTheme.cardDark,
           ),
         ),
         backgroundColor: AppTheme.primaryColor,
@@ -49,38 +50,42 @@ class BillingScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (products) {
-          final juices = products
-              .where((p) => p.category == 'juice' && p.isAvailable)
-              .toList();
-          final cakes = products
-              .where((p) => p.category == 'cake' && p.isAvailable)
-              .toList();
+          final categoriesAsync = ref.watch(categoriesStreamProvider);
 
-          return Column(
-            children: [
-              // Products Grid
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    if (juices.isNotEmpty) ...[
-                      _buildCategoryLabel('🍹 Juices'),
-                      const SizedBox(height: 10),
-                      _buildProductGrid(
-                          context, juices, billingNotifier, billItems),
-                      const SizedBox(height: 16),
-                    ],
-                    if (cakes.isNotEmpty) ...[
-                      _buildCategoryLabel('🎂 Cakes'),
-                      const SizedBox(height: 10),
-                      _buildProductGrid(
-                          context, cakes, billingNotifier, billItems),
-                    ],
-                    const SizedBox(height: 100),
-                  ],
-                ),
-              ),
-            ],
+          return categoriesAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => const SizedBox(),
+            data: (categories) {
+              return Column(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        ...categories.map((cat) {
+                          final catProducts = products
+                              .where((p) =>
+                                  p.category == cat.name && p.isAvailable)
+                              .toList();
+                          if (catProducts.isEmpty) return const SizedBox();
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildCategoryLabel('${cat.emoji} ${cat.name}'),
+                              const SizedBox(height: 10),
+                              _buildProductGrid(context, catProducts,
+                                  billingNotifier, billItems),
+                              const SizedBox(height: 16),
+                            ],
+                          );
+                        }),
+                        const SizedBox(height: 100),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),
@@ -98,7 +103,7 @@ class BillingScreen extends ConsumerWidget {
       style: const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.bold,
-        color: Colors.black87,
+        color: AppTheme.textPrimary,
       ),
     );
   }
@@ -114,7 +119,7 @@ class BillingScreen extends ConsumerWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        childAspectRatio: 0.85,
+        childAspectRatio: 0.8,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
       ),
@@ -149,64 +154,97 @@ class BillingScreen extends ConsumerWidget {
             },
             child: Container(
               decoration: BoxDecoration(
-                color: qty > 0 ? AppTheme.primaryColor : Colors.white,
+                color: qty > 0 ? AppTheme.primaryColor : AppTheme.cardDark,
                 borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                border: Border.all(
+                  color: qty > 0 ? AppTheme.primaryColor : AppTheme.borderColor,
+                ),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    product.category == 'juice' ? Iconsax.cup : Iconsax.cake,
-                    size: 32,
-                    color: qty > 0 ? Colors.white : AppTheme.primaryColor,
+                  const Icon(
+                    Iconsax.box,
+                    size: 28,
+                    color: AppTheme.primaryColor,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    product.name,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: qty > 0 ? Colors.white : Colors.black87,
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      product.name,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: qty > 0 ? Colors.black : AppTheme.textPrimary,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     '₹${product.price.toStringAsFixed(0)}',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: qty > 0 ? Colors.white : AppTheme.primaryColor,
+                      color: qty > 0 ? Colors.black : AppTheme.primaryColor,
                     ),
                   ),
                   if (qty > 0) ...[
                     const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        'x$qty',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: () => _showDeductPinDialog(
+                            context,
+                            notifier,
+                            product.id,
+                          ),
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.25),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.remove,
+                              size: 20,
+                              color: Colors.black,
+                            ),
+                          ),
                         ),
-                      ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Text(
+                            '$qty',
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => notifier.addItem(product),
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.25),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.add,
+                              size: 20,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ],
@@ -230,7 +268,7 @@ class BillingScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardDark,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.08),
@@ -259,7 +297,7 @@ class BillingScreen extends ConsumerWidget {
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                 ],
@@ -294,6 +332,92 @@ class BillingScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showDeductPinDialog(
+    BuildContext context,
+    BillingNotifier notifier,
+    String productId,
+  ) {
+    final pinController = TextEditingController();
+    const adminPin = '1234'; // We'll move this to Firestore later
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppTheme.borderColor),
+        ),
+        title: const Row(
+          children: [
+            Icon(Iconsax.lock, color: AppTheme.primaryColor),
+            SizedBox(width: 8),
+            Text(
+              'Admin PIN Required',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Enter admin PIN to remove item',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: pinController,
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              maxLength: 4,
+              autofocus: true,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 24,
+                letterSpacing: 8,
+              ),
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(
+                counterText: '',
+                hintText: '••••',
+                hintStyle: TextStyle(color: AppTheme.textSecondary),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (pinController.text == adminPin) {
+                Navigator.pop(context);
+                notifier.decreaseQty(productId);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Wrong PIN!'),
+                    backgroundColor: AppTheme.errorColor,
+                  ),
+                );
+              }
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
       ),
     );
   }

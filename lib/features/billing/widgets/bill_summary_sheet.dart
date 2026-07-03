@@ -92,7 +92,7 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
 
     return Container(
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardDark,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
@@ -281,7 +281,7 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                          color: Colors.white,
+                          color: AppTheme.cardDark,
                           strokeWidth: 2,
                         ),
                       )

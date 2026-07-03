@@ -6,6 +6,8 @@ import '../../../data/models/product_model.dart';
 import '../product_provider.dart';
 import 'add_edit_product_screen.dart';
 import 'stock_history_screen.dart';
+import 'category_screen.dart';
+import '../category_provider.dart';
 
 class ProductsScreen extends ConsumerWidget {
   const ProductsScreen({super.key});
@@ -15,34 +17,37 @@ class ProductsScreen extends ConsumerWidget {
     final productsAsync = ref.watch(productsStreamProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.lightBg,
       appBar: AppBar(
         title: const Text(
           'Products',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: AppTheme.cardDark,
           ),
         ),
         backgroundColor: AppTheme.primaryColor,
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Iconsax.category, color: Colors.white),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CategoryScreen()),
+            ),
+          ),
+          IconButton(
             icon: const Icon(Iconsax.document_text, color: Colors.white),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const StockHistoryScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const StockHistoryScreen()),
             ),
           ),
           IconButton(
             icon: const Icon(Iconsax.add_circle, color: Colors.white),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const AddEditProductScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const AddEditProductScreen()),
             ),
           ),
         ],
@@ -55,24 +60,48 @@ class ProductsScreen extends ConsumerWidget {
             return _buildEmptyState(context);
           }
 
-          final juices = products.where((p) => p.category == 'juice').toList();
-          final cakes = products.where((p) => p.category == 'cake').toList();
+          final categoriesAsync = ref.watch(categoriesStreamProvider);
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              if (juices.isNotEmpty) ...[
-                _buildCategoryHeader('🍹 Juices', juices.length),
-                const SizedBox(height: 8),
-                ...juices.map((p) => _buildProductCard(context, ref, p)),
-                const SizedBox(height: 16),
-              ],
-              if (cakes.isNotEmpty) ...[
-                _buildCategoryHeader('🎂 Cakes', cakes.length),
-                const SizedBox(height: 8),
-                ...cakes.map((p) => _buildProductCard(context, ref, p)),
-              ],
-            ],
+          return categoriesAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => const SizedBox(),
+            data: (categories) {
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  ...categories.map((cat) {
+                    final catProducts =
+                        products.where((p) => p.category == cat.name).toList();
+                    if (catProducts.isEmpty) return const SizedBox();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildCategoryHeader(
+                            '${cat.emoji} ${cat.name}', catProducts.length),
+                        const SizedBox(height: 8),
+                        ...catProducts
+                            .map((p) => _buildProductCard(context, ref, p)),
+                        const SizedBox(height: 16),
+                      ],
+                    );
+                  }),
+                  // Uncategorized products
+                  ...() {
+                    final categoryNames = categories.map((c) => c.name).toSet();
+                    final uncategorized = products
+                        .where((p) => !categoryNames.contains(p.category))
+                        .toList();
+                    if (uncategorized.isEmpty) return <Widget>[];
+                    return [
+                      _buildCategoryHeader('📦 Other', uncategorized.length),
+                      const SizedBox(height: 8),
+                      ...uncategorized
+                          .map((p) => _buildProductCard(context, ref, p)),
+                    ];
+                  }(),
+                ],
+              );
+            },
           );
         },
       ),
@@ -87,7 +116,8 @@ class ProductsScreen extends ConsumerWidget {
         icon: const Icon(Iconsax.add, color: Colors.white),
         label: const Text(
           'Add Product',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style:
+              TextStyle(color: AppTheme.cardDark, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -137,7 +167,7 @@ class ProductsScreen extends ConsumerWidget {
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: AppTheme.textPrimary,
           ),
         ),
         const SizedBox(width: 8),
@@ -165,7 +195,7 @@ class ProductsScreen extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardDark,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -199,6 +229,7 @@ class ProductsScreen extends ConsumerWidget {
           style: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 14,
+            color: AppTheme.textPrimary,
           ),
         ),
         subtitle: Row(

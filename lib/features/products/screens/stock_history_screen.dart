@@ -18,13 +18,13 @@ class StockHistoryScreen extends ConsumerWidget {
     final adjustmentsAsync = ref.watch(stockAdjustmentsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.lightBg,
       appBar: AppBar(
         title: const Text(
           'Stock Adjustment History',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: AppTheme.cardDark,
             fontSize: 16,
           ),
         ),
@@ -78,7 +78,7 @@ class StockHistoryScreen extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardDark,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(

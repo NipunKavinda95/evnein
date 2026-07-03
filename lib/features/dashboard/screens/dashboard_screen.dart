@@ -30,7 +30,7 @@ class DashboardScreen extends ConsumerWidget {
     final billsAsync = ref.watch(todaysBillsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.lightBg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -51,7 +51,7 @@ class DashboardScreen extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -85,7 +85,7 @@ class DashboardScreen extends ConsumerWidget {
                           value: '0',
                           icon: Iconsax.people,
                           color: AppTheme.accentColor,
-                          textColor: Colors.black87,
+                          textColor: Colors.black,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -148,7 +148,7 @@ class DashboardScreen extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -182,7 +182,7 @@ class DashboardScreen extends ConsumerWidget {
                           value: '$uniqueCustomers',
                           icon: Iconsax.people,
                           color: AppTheme.accentColor,
-                          textColor: Colors.black87,
+                          textColor: Colors.black,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -205,7 +205,7 @@ class DashboardScreen extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -251,7 +251,7 @@ class DashboardScreen extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -260,7 +260,7 @@ class DashboardScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppTheme.cardDark,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Center(
@@ -270,8 +270,8 @@ class DashboardScreen extends ConsumerWidget {
                             SizedBox(height: 8),
                             Text(
                               'No orders yet today',
-                              style:
-                                  TextStyle(color: Colors.grey, fontSize: 13),
+                              style: TextStyle(
+                                  color: AppTheme.textSecondary, fontSize: 13),
                             ),
                           ],
                         ),
@@ -282,7 +282,7 @@ class DashboardScreen extends ConsumerWidget {
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppTheme.cardDark,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -315,7 +315,7 @@ class DashboardScreen extends ConsumerWidget {
                                     Text(
                                       '${bill.items.length} items • ${bill.paymentMethod.toUpperCase()}',
                                       style: const TextStyle(
-                                        color: Colors.grey,
+                                        color: AppTheme.textSecondary,
                                         fontSize: 11,
                                       ),
                                     ),
@@ -342,7 +342,7 @@ class DashboardScreen extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -364,7 +364,7 @@ class DashboardScreen extends ConsumerWidget {
                             return Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppTheme.cardDark,
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
                                   color: AppTheme.successColor.withOpacity(0.3),
@@ -405,7 +405,7 @@ class DashboardScreen extends ConsumerWidget {
                                       margin: const EdgeInsets.only(bottom: 8),
                                       padding: const EdgeInsets.all(16),
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
+                                        color: AppTheme.cardDark,
                                         borderRadius: BorderRadius.circular(16),
                                         border: Border.all(
                                           color: AppTheme.errorColor
@@ -500,7 +500,8 @@ class DashboardScreen extends ConsumerWidget {
           children: [
             Text(
               _getGreeting(),
-              style: const TextStyle(fontSize: 13, color: Colors.grey),
+              style:
+                  const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
             ),
             const SizedBox(height: 2),
             userAsync.when(
@@ -511,7 +512,7 @@ class DashboardScreen extends ConsumerWidget {
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: AppTheme.textPrimary,
                 ),
               ),
             ),
@@ -528,7 +529,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
             child: const Icon(
               Iconsax.logout,
-              color: Colors.white,
+              color: AppTheme.cardDark,
               size: 20,
             ),
           ),
@@ -608,7 +609,7 @@ class DashboardScreen extends ConsumerWidget {
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: Colors.black87,
+              color: AppTheme.textPrimary,
             ),
           ),
         ],

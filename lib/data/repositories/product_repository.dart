@@ -19,6 +19,21 @@ class ProductRepository {
     });
   }
 
+  static Future<List<ProductModel>> getAllProducts() async {
+    final snapshot = await _collection.get();
+    return snapshot.docs
+        .map((doc) => ProductModel.fromMap(doc.data()))
+        .toList();
+  }
+
+  static Future<bool> productExists(String name) async {
+    final query = await _collection
+        .where('name', isEqualTo: name.trim().toLowerCase())
+        .limit(1)
+        .get();
+    return query.docs.isNotEmpty;
+  }
+
   // Add product
   static Future<void> addProduct(ProductModel product) async {
     await _collection.doc(product.id).set(product.toMap());

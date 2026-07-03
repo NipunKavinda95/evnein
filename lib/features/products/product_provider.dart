@@ -31,6 +31,20 @@ class ProductNotifier extends StateNotifier<AsyncValue<void>> {
   }) async {
     state = const AsyncValue.loading();
     try {
+      // Check for duplicate name
+      final allProducts = await ProductRepository.getAllProducts();
+      final duplicate = allProducts.any(
+        (p) => p.name.trim().toLowerCase() == name.trim().toLowerCase(),
+      );
+
+      if (duplicate) {
+        state = AsyncValue.error(
+          'Product "$name" already exists!',
+          StackTrace.current,
+        );
+        return false;
+      }
+
       final product = ProductModel(
         id: const Uuid().v4(),
         name: name,

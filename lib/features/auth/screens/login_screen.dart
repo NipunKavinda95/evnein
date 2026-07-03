@@ -58,7 +58,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.lightBg,
+      backgroundColor: AppTheme.darkBg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -67,25 +67,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             children: [
               const SizedBox(height: 60),
 
-              // Logo & Brand
+              // Logo
               Container(
                 width: 90,
                 height: 90,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.primaryColor.withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AppTheme.primaryColor,
+                    width: 1.5,
+                  ),
                 ),
                 child: const Icon(
-                  Icons.local_drink,
-                  size: 48,
-                  color: Colors.white,
+                  Icons.store_outlined,
+                  size: 40,
+                  color: AppTheme.primaryColor,
                 ),
               ),
 
@@ -97,16 +93,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.primaryColor,
-                  letterSpacing: 4,
+                  letterSpacing: 6,
                 ),
               ),
 
               const Text(
-                'Juice & Cake Shop',
+                'SHOP MANAGEMENT',
                 style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                  letterSpacing: 1,
+                  fontSize: 10,
+                  color: AppTheme.textSecondary,
+                  letterSpacing: 3,
                 ),
               ),
 
@@ -116,15 +112,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppTheme.cardDark,
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  border: Border.all(
+                    color: AppTheme.primaryColor.withOpacity(0.2),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,7 +126,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: AppTheme.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -142,73 +134,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       'Sign in to continue',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey,
+                        color: AppTheme.textSecondary,
                       ),
                     ),
 
                     const SizedBox(height: 24),
 
-                    // Email Field
+                    // Email
                     TextField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
+                      style: const TextStyle(color: AppTheme.textPrimary),
+                      decoration: const InputDecoration(
                         labelText: 'Email',
-                        prefixIcon: const Icon(
-                          Icons.email_outlined,
-                          color: AppTheme.primaryColor,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: AppTheme.primaryColor,
-                            width: 2,
-                          ),
-                        ),
+                        prefixIcon: Icon(Icons.email_outlined),
                       ),
                     ),
 
                     const SizedBox(height: 16),
 
-                    // Password Field
+                    // Password
                     TextField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
+                      style: const TextStyle(color: AppTheme.textPrimary),
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: const Icon(
-                          Icons.lock_outlined,
-                          color: AppTheme.primaryColor,
-                        ),
+                        prefixIcon: const Icon(Icons.lock_outlined),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: Colors.grey,
+                            color: AppTheme.textSecondary,
                           ),
                           onPressed: () => setState(
                             () => _obscurePassword = !_obscurePassword,
-                          ),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: AppTheme.primaryColor,
-                            width: 2,
                           ),
                         ),
                       ),
                       onSubmitted: (_) => _handleLogin(),
                     ),
 
-                    // Error Message
                     if (_errorMessage != null) ...[
                       const SizedBox(height: 12),
                       Container(
@@ -219,6 +186,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         decoration: BoxDecoration(
                           color: AppTheme.errorColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppTheme.errorColor.withOpacity(0.3),
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -242,7 +212,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Login Button
                     SizedBox(
                       width: double.infinity,
                       height: 52,
@@ -253,15 +222,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 width: 24,
                                 height: 24,
                                 child: CircularProgressIndicator(
-                                  color: Colors.white,
+                                  color: Colors.black,
                                   strokeWidth: 2,
                                 ),
                               )
                             : const Text(
-                                'Sign In',
+                                'SIGN IN',
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 15,
                                   fontWeight: FontWeight.bold,
+                                  letterSpacing: 2,
                                 ),
                               ),
                       ),
@@ -272,12 +242,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               const SizedBox(height: 40),
 
-              // Footer
               Text(
                 'EVNEIN © 2024',
                 style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade400,
+                  fontSize: 11,
+                  color: AppTheme.textSecondary.withOpacity(0.5),
+                  letterSpacing: 2,
                 ),
               ),
             ],

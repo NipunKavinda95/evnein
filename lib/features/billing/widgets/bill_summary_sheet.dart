@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax/iconsax.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../data/models/bill_model.dart';
+import '../../../data/repositories/customer_repository.dart';
 import '../billing_provider.dart';
+import '../../../features/customers/customer_provider.dart';
 
 class BillSummarySheet extends ConsumerStatefulWidget {
   final List<BillItem> billItems;
@@ -24,12 +26,52 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
   final _customerPhoneController = TextEditingController();
   final _customerNameController = TextEditingController();
 
+  bool _isLookingUp = false;
+  bool _customerFound = false;
+  String? _foundCustomerId;
+
   @override
   void dispose() {
     _discountController.dispose();
     _customerPhoneController.dispose();
     _customerNameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _lookupCustomer(String phone) async {
+    if (phone.length < 10) {
+      setState(() {
+        _customerFound = false;
+        _foundCustomerId = null;
+      });
+      return;
+    }
+
+    setState(() => _isLookingUp = true);
+
+    try {
+      final customer =
+          await CustomerRepository.getCustomerByPhone(phone.trim());
+      if (mounted) {
+        if (customer != null) {
+          setState(() {
+            _customerFound = true;
+            _foundCustomerId = customer.id;
+            _isLookingUp = false;
+          });
+          _customerNameController.text = customer.name;
+        } else {
+          setState(() {
+            _customerFound = false;
+            _foundCustomerId = null;
+            _isLookingUp = false;
+          });
+          _customerNameController.clear();
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLookingUp = false);
+    }
   }
 
   Future<void> _confirmBill() async {
@@ -52,10 +94,39 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
 
     if (mounted) {
       if (billId != null) {
+        final phone = _customerPhoneController.text.trim();
+        if (phone.isNotEmpty) {
+          final customerNotifier = ref.read(customerNotifierProvider.notifier);
+
+          if (_customerFound && _foundCustomerId != null) {
+            // Existing customer — just update stats
+            await customerNotifier.updateAfterBill(
+              customerId: _foundCustomerId!,
+              billAmount: widget.subtotal - discount,
+            );
+          } else {
+            // New customer — create then update
+            final customer = await customerNotifier.findOrCreateCustomer(
+              phone: phone,
+              name: _customerNameController.text.trim().isEmpty
+                  ? null
+                  : _customerNameController.text.trim(),
+            );
+            if (customer != null) {
+              await customerNotifier.updateAfterBill(
+                customerId: customer.id,
+                billAmount: widget.subtotal - discount,
+              );
+            }
+          }
+        }
+
         billingNotifier.clearBill();
         ref.read(discountProvider.notifier).state = 0;
         ref.read(paymentMethodProvider.notifier).state = 'cash';
+        // ignore: use_build_context_synchronously
         Navigator.pop(context);
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -70,7 +141,6 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
           ),
         );
       } else {
-        // Show stock error
         final error = ref.read(saveBillProvider).error;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -103,13 +173,12 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Handle
             Center(
               child: Container(
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: AppTheme.borderColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -121,6 +190,7 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
               ),
             ),
             const SizedBox(height: 16),
@@ -134,7 +204,10 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
                       Expanded(
                         child: Text(
                           '${item.productName} x${item.quantity}',
-                          style: const TextStyle(fontSize: 14),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppTheme.textPrimary,
+                          ),
                         ),
                       ),
                       Text(
@@ -142,20 +215,26 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
+                          color: AppTheme.textPrimary,
                         ),
                       ),
                     ],
                   ),
                 )),
 
-            const Divider(height: 24),
+            const Divider(height: 24, color: AppTheme.borderColor),
 
-            // Subtotal
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Subtotal'),
-                Text('₹${widget.subtotal.toStringAsFixed(0)}'),
+                const Text(
+                  'Subtotal',
+                  style: TextStyle(color: AppTheme.textSecondary),
+                ),
+                Text(
+                  '₹${widget.subtotal.toStringAsFixed(0)}',
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                ),
               ],
             ),
 
@@ -165,22 +244,10 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
             TextField(
               controller: _discountController,
               keyboardType: TextInputType.number,
-              decoration: InputDecoration(
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: const InputDecoration(
                 labelText: 'Discount (₹)',
-                prefixIcon: const Icon(
-                  Iconsax.discount_shape,
-                  color: AppTheme.primaryColor,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: AppTheme.primaryColor,
-                    width: 2,
-                  ),
-                ),
+                prefixIcon: Icon(Iconsax.discount_shape),
               ),
               onChanged: (val) {
                 ref.read(discountProvider.notifier).state =
@@ -190,37 +257,63 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
 
             const SizedBox(height: 16),
 
-            // Customer Info (optional)
+            // Customer Phone with auto-lookup
             TextField(
               controller: _customerPhoneController,
               keyboardType: TextInputType.phone,
+              style: const TextStyle(color: AppTheme.textPrimary),
               decoration: InputDecoration(
                 labelText: 'Customer Phone (optional)',
-                prefixIcon: const Icon(
-                  Iconsax.call,
-                  color: AppTheme.primaryColor,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: AppTheme.primaryColor,
-                    width: 2,
-                  ),
-                ),
+                prefixIcon: const Icon(Iconsax.call),
+                suffixIcon: _isLookingUp
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                      )
+                    : _customerFound
+                        ? const Icon(
+                            Iconsax.tick_circle,
+                            color: AppTheme.successColor,
+                          )
+                        : null,
+                helperText: _customerFound ? 'Existing customer found ✓' : null,
+                helperStyle: const TextStyle(color: AppTheme.successColor),
               ),
+              onChanged: _lookupCustomer,
+            ),
+
+            const SizedBox(height: 12),
+
+            // Customer Name — auto-filled or manual
+            TextField(
+              controller: _customerNameController,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: InputDecoration(
+                labelText: 'Customer Name (optional)',
+                prefixIcon: const Icon(Iconsax.user),
+                helperText: _customerFound
+                    ? 'Auto-filled from existing customer'
+                    : null,
+                helperStyle: const TextStyle(color: AppTheme.textSecondary),
+              ),
+              readOnly: _customerFound,
             ),
 
             const SizedBox(height: 16),
 
-            // Payment Method
             const Text(
               'Payment Method',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
+                color: AppTheme.textPrimary,
               ),
             ),
             const SizedBox(height: 10),
@@ -236,7 +329,6 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
 
             const SizedBox(height: 20),
 
-            // Grand Total
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -254,6 +346,7 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                   Text(
@@ -270,7 +363,6 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
 
             const SizedBox(height: 20),
 
-            // Confirm Button
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -281,7 +373,7 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                          color: AppTheme.cardDark,
+                          color: Colors.black,
                           strokeWidth: 2,
                         ),
                       )
@@ -315,10 +407,10 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? AppTheme.primaryColor : Colors.grey.shade100,
+            color: isSelected ? AppTheme.primaryColor : AppTheme.surfaceDark,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
+              color: isSelected ? AppTheme.primaryColor : AppTheme.borderColor,
             ),
           ),
           child: Center(
@@ -327,7 +419,7 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: isSelected ? Colors.white : Colors.grey,
+                color: isSelected ? Colors.black : AppTheme.textSecondary,
               ),
             ),
           ),

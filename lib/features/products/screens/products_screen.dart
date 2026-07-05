@@ -8,6 +8,11 @@ import 'add_edit_product_screen.dart';
 import 'stock_history_screen.dart';
 import 'category_screen.dart';
 import '../category_provider.dart';
+import 'package:uuid/uuid.dart';
+import '../../../data/models/grn_model.dart';
+import '../../../data/repositories/grn_repository.dart';
+import '../../../data/repositories/product_repository.dart';
+import '../../../features/auth/user_provider.dart';
 
 class ProductsScreen extends ConsumerWidget {
   const ProductsScreen({super.key});
@@ -267,6 +272,39 @@ class ProductsScreen extends ConsumerWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Add Stock Button
+            GestureDetector(
+              onTap: () => _showAddStockDialog(context, ref, product),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.successColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Iconsax.add,
+                      size: 14,
+                      color: AppTheme.successColor,
+                    ),
+                    SizedBox(width: 2),
+                    Text(
+                      'Stock',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.successColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             IconButton(
               icon: const Icon(Iconsax.edit, size: 18, color: Colors.grey),
               onPressed: () => Navigator.push(
@@ -285,6 +323,174 @@ class ProductsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  void _showAddStockDialog(
+      BuildContext context, WidgetRef ref, ProductModel product) {
+    final qtyController = TextEditingController();
+    final noteController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppTheme.borderColor),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Add Stock',
+              style: TextStyle(color: AppTheme.textPrimary),
+            ),
+            Text(
+              product.name,
+              style: const TextStyle(
+                color: AppTheme.primaryColor,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceDark,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Current Stock',
+                    style: TextStyle(color: AppTheme.textSecondary),
+                  ),
+                  Text(
+                    '${product.stockQuantity}',
+                    style: const TextStyle(
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: qtyController,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Quantity Received',
+                prefixIcon: Icon(Iconsax.add_circle),
+                hintText: 'How many received?',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: noteController,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Supplier Note (optional)',
+                prefixIcon: Icon(Iconsax.document_text),
+                hintText: 'e.g. Supplier name, invoice no.',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final qty = int.tryParse(qtyController.text);
+              if (qty == null || qty <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Enter a valid quantity'),
+                    backgroundColor: AppTheme.errorColor,
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(context);
+              await _addStock(
+                context: context,
+                ref: ref,
+                product: product,
+                qty: qty,
+                note: noteController.text.trim(),
+              );
+            },
+            child: const Text('Add Stock'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _addStock({
+    required BuildContext context,
+    required WidgetRef ref,
+    required ProductModel product,
+    required int qty,
+    required String note,
+  }) async {
+    try {
+      final previousStock = product.stockQuantity;
+      final newStock = previousStock + qty;
+
+      // Update product stock
+      await ProductRepository.updateStock(product.id, qty);
+
+      // Save GRN record
+      final userAsync = ref.read(currentUserProvider);
+      final receivedBy = userAsync.valueOrNull?.name ?? 'Admin';
+
+      final grn = GrnModel(
+        id: const Uuid().v4(),
+        productId: product.id,
+        productName: product.name,
+        previousStock: previousStock,
+        quantityReceived: qty,
+        newStock: newStock,
+        supplierNote: note.isEmpty ? null : note,
+        receivedBy: receivedBy,
+        createdAt: DateTime.now(),
+      );
+
+      await GrnRepository.saveGrn(grn);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Added $qty units to ${product.name}. New stock: $newStock',
+            ),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to add stock'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
 
   void _confirmDelete(

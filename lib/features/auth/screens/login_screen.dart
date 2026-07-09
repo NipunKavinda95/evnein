@@ -243,7 +243,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 40),
 
               Text(
-                'EVNEIN © 2024',
+                'EVNEIN © 2026',
                 style: TextStyle(
                   fontSize: 11,
                   color: AppTheme.textSecondary.withOpacity(0.5),

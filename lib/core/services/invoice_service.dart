@@ -166,7 +166,7 @@ class InvoiceService {
 
                     // Items table
                     pw.Table(
-                      border: pw.TableBorder(
+                      border: const pw.TableBorder(
                         horizontalInside: pw.BorderSide(
                           color: PdfColors.grey300,
                           width: 0.5,

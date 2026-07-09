@@ -10,6 +10,18 @@ class BillRepository {
     await _collection.doc(bill.id).set(bill.toMap());
   }
 
+  static Stream<List<BillModel>> getAllBillsStream() {
+    return FirebaseService.auth.authStateChanges().asyncExpand((user) {
+      if (user == null) return Stream.value([]);
+      return _collection
+          .snapshots()
+          .map((snap) =>
+              snap.docs.map((d) => BillModel.fromMap(d.data())).toList()
+                ..sort((a, b) => b.createdAt.compareTo(a.createdAt)))
+          .handleError((e) => <BillModel>[]);
+    });
+  }
+
   static Stream<List<BillModel>> getTodaysBillsStream() {
     return FirebaseService.auth.authStateChanges().asyncExpand((user) {
       if (user == null) return Stream.value([]);

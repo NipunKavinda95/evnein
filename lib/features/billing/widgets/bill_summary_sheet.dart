@@ -4,6 +4,7 @@ import 'package:iconsax/iconsax.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../data/models/bill_model.dart';
 import '../../../data/repositories/customer_repository.dart';
+import '../../../core/services/invoice_service.dart';
 import '../billing_provider.dart';
 import '../../../features/customers/customer_provider.dart';
 
@@ -29,6 +30,8 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
   bool _isLookingUp = false;
   bool _customerFound = false;
   String? _foundCustomerId;
+  bool _isGeneratingPdf = false;
+  BillModel? _savedBill;
 
   @override
   void dispose() {
@@ -94,18 +97,35 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
 
     if (mounted) {
       if (billId != null) {
+        // Store saved bill for sharing
+        setState(() {
+          _savedBill = BillModel(
+            id: billId,
+            items: widget.billItems,
+            subtotal: widget.subtotal,
+            discount: discount,
+            grandTotal: widget.subtotal - discount,
+            paymentMethod: paymentMethod,
+            customerPhone: _customerPhoneController.text.trim().isEmpty
+                ? null
+                : _customerPhoneController.text.trim(),
+            customerName: _customerNameController.text.trim().isEmpty
+                ? null
+                : _customerNameController.text.trim(),
+            createdAt: DateTime.now(),
+          );
+        });
+
         final phone = _customerPhoneController.text.trim();
         if (phone.isNotEmpty) {
           final customerNotifier = ref.read(customerNotifierProvider.notifier);
 
           if (_customerFound && _foundCustomerId != null) {
-            // Existing customer — just update stats
             await customerNotifier.updateAfterBill(
               customerId: _foundCustomerId!,
               billAmount: widget.subtotal - discount,
             );
           } else {
-            // New customer — create then update
             final customer = await customerNotifier.findOrCreateCustomer(
               phone: phone,
               name: _customerNameController.text.trim().isEmpty
@@ -124,8 +144,7 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
         billingNotifier.clearBill();
         ref.read(discountProvider.notifier).state = 0;
         ref.read(paymentMethodProvider.notifier).state = 'cash';
-        // ignore: use_build_context_synchronously
-        Navigator.pop(context);
+
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -153,12 +172,46 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
     }
   }
 
+  Future<void> _shareInvoice() async {
+    final discount = ref.read(discountProvider);
+    final paymentMethod = ref.read(paymentMethodProvider);
+
+    setState(() => _isGeneratingPdf = true);
+    try {
+      final bill = _savedBill ??
+          BillModel(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            items: widget.billItems,
+            subtotal: widget.subtotal,
+            discount: discount,
+            grandTotal: widget.subtotal - discount,
+            paymentMethod: paymentMethod,
+            customerPhone: _customerPhoneController.text.trim().isEmpty
+                ? null
+                : _customerPhoneController.text.trim(),
+            customerName: _customerNameController.text.trim().isEmpty
+                ? null
+                : _customerNameController.text.trim(),
+            createdAt: DateTime.now(),
+          );
+
+      final file = await InvoiceService.generateInvoice(bill);
+      await InvoiceService.shareOnWhatsApp(
+        bill: bill,
+        pdfFile: file,
+      );
+    } finally {
+      if (mounted) setState(() => _isGeneratingPdf = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final discount = ref.watch(discountProvider);
     final paymentMethod = ref.watch(paymentMethodProvider);
     final grandTotal = widget.subtotal - discount;
     final isSaving = ref.watch(saveBillProvider).isLoading;
+    final billSaved = _savedBill != null;
 
     return Container(
       decoration: const BoxDecoration(
@@ -185,14 +238,58 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
             ),
             const SizedBox(height: 20),
 
-            const Text(
-              'Bill Summary',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+            // Show success state after bill saved
+            if (billSaved)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.successColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.successColor.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Iconsax.tick_circle,
+                      color: AppTheme.successColor,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Bill Saved Successfully!',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.successColor,
+                            ),
+                          ),
+                          Text(
+                            'Bill #${_savedBill!.id.substring(0, 8).toUpperCase()}',
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              const Text(
+                'Bill Summary',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
               ),
-            ),
+
             const SizedBox(height: 16),
 
             // Items list
@@ -238,97 +335,101 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
               ],
             ),
 
-            const SizedBox(height: 16),
+            if (!billSaved) ...[
+              const SizedBox(height: 16),
 
-            // Discount
-            TextField(
-              controller: _discountController,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: const InputDecoration(
-                labelText: 'Discount (₹)',
-                prefixIcon: Icon(Iconsax.discount_shape),
+              // Discount
+              TextField(
+                controller: _discountController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(
+                  labelText: 'Discount (₹)',
+                  prefixIcon: Icon(Iconsax.discount_shape),
+                ),
+                onChanged: (val) {
+                  ref.read(discountProvider.notifier).state =
+                      double.tryParse(val) ?? 0;
+                },
               ),
-              onChanged: (val) {
-                ref.read(discountProvider.notifier).state =
-                    double.tryParse(val) ?? 0;
-              },
-            ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // Customer Phone with auto-lookup
-            TextField(
-              controller: _customerPhoneController,
-              keyboardType: TextInputType.phone,
-              style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: InputDecoration(
-                labelText: 'Customer Phone (optional)',
-                prefixIcon: const Icon(Iconsax.call),
-                suffixIcon: _isLookingUp
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppTheme.primaryColor,
+              // Customer Phone with auto-lookup
+              TextField(
+                controller: _customerPhoneController,
+                keyboardType: TextInputType.phone,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: InputDecoration(
+                  labelText: 'Customer Phone (optional)',
+                  prefixIcon: const Icon(Iconsax.call),
+                  suffixIcon: _isLookingUp
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppTheme.primaryColor,
+                            ),
                           ),
-                        ),
-                      )
-                    : _customerFound
-                        ? const Icon(
-                            Iconsax.tick_circle,
-                            color: AppTheme.successColor,
-                          )
-                        : null,
-                helperText: _customerFound ? 'Existing customer found ✓' : null,
-                helperStyle: const TextStyle(color: AppTheme.successColor),
+                        )
+                      : _customerFound
+                          ? const Icon(
+                              Iconsax.tick_circle,
+                              color: AppTheme.successColor,
+                            )
+                          : null,
+                  helperText:
+                      _customerFound ? 'Existing customer found ✓' : null,
+                  helperStyle: const TextStyle(color: AppTheme.successColor),
+                ),
+                onChanged: _lookupCustomer,
               ),
-              onChanged: _lookupCustomer,
-            ),
 
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            // Customer Name — auto-filled or manual
-            TextField(
-              controller: _customerNameController,
-              style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: InputDecoration(
-                labelText: 'Customer Name (optional)',
-                prefixIcon: const Icon(Iconsax.user),
-                helperText: _customerFound
-                    ? 'Auto-filled from existing customer'
-                    : null,
-                helperStyle: const TextStyle(color: AppTheme.textSecondary),
+              // Customer Name
+              TextField(
+                controller: _customerNameController,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: InputDecoration(
+                  labelText: 'Customer Name (optional)',
+                  prefixIcon: const Icon(Iconsax.user),
+                  helperText: _customerFound
+                      ? 'Auto-filled from existing customer'
+                      : null,
+                  helperStyle: const TextStyle(color: AppTheme.textSecondary),
+                ),
+                readOnly: _customerFound,
               ),
-              readOnly: _customerFound,
-            ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            const Text(
-              'Payment Method',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: AppTheme.textPrimary,
+              const Text(
+                'Payment Method',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: AppTheme.textPrimary,
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                _buildPaymentOption(ref, 'cash', '💵 Cash', paymentMethod),
-                const SizedBox(width: 8),
-                _buildPaymentOption(ref, 'upi', '📱 UPI', paymentMethod),
-                const SizedBox(width: 8),
-                _buildPaymentOption(ref, 'card', '💳 Card', paymentMethod),
-              ],
-            ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  _buildPaymentOption(ref, 'cash', '💵 Cash', paymentMethod),
+                  const SizedBox(width: 8),
+                  _buildPaymentOption(ref, 'upi', '📱 UPI', paymentMethod),
+                  const SizedBox(width: 8),
+                  _buildPaymentOption(ref, 'card', '💳 Card', paymentMethod),
+                ],
+              ),
+            ],
 
             const SizedBox(height: 20),
 
+            // Grand Total
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -363,30 +464,86 @@ class _BillSummarySheetState extends ConsumerState<BillSummarySheet> {
 
             const SizedBox(height: 20),
 
+            // Confirm Bill Button (hide after saved)
+            if (!billSaved)
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: isSaving ? null : _confirmBill,
+                  icon: isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.black,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Iconsax.tick_circle),
+                  label: Text(
+                    isSaving ? 'Saving...' : 'Confirm Bill',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 12),
+
+            // Share Invoice Button
             SizedBox(
               width: double.infinity,
-              height: 52,
-              child: ElevatedButton.icon(
-                onPressed: isSaving ? null : _confirmBill,
-                icon: isSaving
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _isGeneratingPdf ? null : _shareInvoice,
+                icon: _isGeneratingPdf
                     ? const SizedBox(
-                        width: 20,
-                        height: 20,
+                        width: 18,
+                        height: 18,
                         child: CircularProgressIndicator(
-                          color: Colors.black,
                           strokeWidth: 2,
+                          color: AppTheme.primaryColor,
                         ),
                       )
-                    : const Icon(Iconsax.tick_circle),
+                    : const Icon(
+                        Iconsax.share,
+                        color: AppTheme.primaryColor,
+                      ),
                 label: Text(
-                  isSaving ? 'Saving...' : 'Confirm Bill',
+                  _isGeneratingPdf ? 'Generating...' : 'Share Invoice',
                   style: const TextStyle(
-                    fontSize: 16,
+                    color: AppTheme.primaryColor,
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppTheme.primaryColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               ),
             ),
+
+            // Close button after saved
+            if (billSaved) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'Close',
+                    style: TextStyle(color: AppTheme.textSecondary),
+                  ),
+                ),
+              ),
+            ],
+
             const SizedBox(height: 16),
           ],
         ),

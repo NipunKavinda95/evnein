@@ -9,6 +9,7 @@ import '../../../shared/layouts/main_layout.dart';
 import '../../../features/auth/user_provider.dart';
 import '../../../features/products/product_provider.dart';
 import '../../../app/config/app_config.dart';
+import '../../settings/screens/settings_screen.dart';
 
 final todaysBillsProvider = StreamProvider<List<BillModel>>((ref) {
   return BillRepository.getTodaysBillsStream();
@@ -44,7 +45,7 @@ class DashboardScreen extends ConsumerWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(ref),
+                  _buildHeader(context, ref),
                   const SizedBox(height: 24),
                   const Text(
                     "Today's Overview",
@@ -139,7 +140,7 @@ class DashboardScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Header
-                  _buildHeader(ref),
+                  _buildHeader(context, ref),
                   const SizedBox(height: 24),
 
                   // Stats
@@ -489,7 +490,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(WidgetRef ref) {
+  Widget _buildHeader(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
 
     return Row(
@@ -518,21 +519,49 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ],
         ),
-        GestureDetector(
-          onTap: () async => await FirebaseService.signOut(),
-          child: Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
-              borderRadius: BorderRadius.circular(12),
+        Row(
+          children: [
+            // Settings button
+            GestureDetector(
+              onTap: () => Navigator.push(
+                ref.context,
+                MaterialPageRoute(
+                  builder: (_) => const SettingsScreen(),
+                ),
+              ),
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceDark,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Iconsax.setting_2,
+                  color: AppTheme.primaryColor,
+                  size: 20,
+                ),
+              ),
             ),
-            child: const Icon(
-              Iconsax.logout,
-              color: AppTheme.cardDark,
-              size: 20,
+            const SizedBox(width: 10),
+            // Logout button
+            GestureDetector(
+              onTap: () async => await FirebaseService.signOut(),
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Iconsax.logout,
+                  color: AppTheme.cardDark,
+                  size: 20,
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ],
     );

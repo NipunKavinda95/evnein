@@ -8,6 +8,7 @@ import '../billing_provider.dart';
 import '../widgets/bill_summary_sheet.dart';
 import '../../../data/models/bill_model.dart';
 import '../../../features/products/category_provider.dart';
+import '../../../data/repositories/settings_repository.dart';
 
 class BillingScreen extends ConsumerWidget {
   const BillingScreen({super.key});
@@ -342,7 +343,6 @@ class BillingScreen extends ConsumerWidget {
     String productId,
   ) {
     final pinController = TextEditingController();
-    const adminPin = '1234'; // We'll move this to Firestore later
 
     showDialog(
       context: context,
@@ -402,8 +402,11 @@ class BillingScreen extends ConsumerWidget {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              if (pinController.text == adminPin) {
+            onPressed: () async {
+              // Get PIN from Firestore
+              final settings = await SettingsRepository.getSettings();
+              if (!context.mounted) return;
+              if (pinController.text == settings.adminPin) {
                 Navigator.pop(context);
                 notifier.decreaseQty(productId);
               } else {

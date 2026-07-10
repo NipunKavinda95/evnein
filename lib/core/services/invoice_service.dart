@@ -6,12 +6,14 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../data/models/bill_model.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../data/repositories/settings_repository.dart';
 
 class InvoiceService {
   static const PdfColor _brand = PdfColor.fromInt(0xFF0F766E); // teal
   static const PdfColor _brandDark = PdfColor.fromInt(0xFF134E4A);
 
   static Future<File> generateInvoice(BillModel bill) async {
+    final settings = await SettingsRepository.getSettings();
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -36,7 +38,7 @@ class InvoiceService {
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text(
-                          'EVNEIN',
+                          settings.shopName,
                           style: pw.TextStyle(
                             fontSize: 24,
                             fontWeight: pw.FontWeight.bold,
@@ -45,8 +47,18 @@ class InvoiceService {
                           ),
                         ),
                         pw.SizedBox(height: 2),
+                        // Show address only if available
+                        if (settings.shopAddress != null)
+                          pw.Text(
+                            settings.shopAddress!,
+                            style: const pw.TextStyle(
+                              fontSize: 10,
+                              color: PdfColors.white,
+                            ),
+                          ),
+                        pw.SizedBox(height: 2),
                         pw.Text(
-                          'Shop Management',
+                          settings.shopPhone ?? 'Shop Management',
                           style: const pw.TextStyle(
                             fontSize: 10,
                             color: PdfColors.white,

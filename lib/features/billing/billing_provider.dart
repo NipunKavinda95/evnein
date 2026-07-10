@@ -49,12 +49,12 @@ class BillingNotifier extends StateNotifier<List<BillItem>> {
   // Decrease quantity
   void decreaseQty(String productId) {
     state = state.map((item) {
-      if (item.productId == productId && item.quantity > 1) {
+      if (item.productId == productId) {
         item.quantity--;
       }
       return item;
     }).toList();
-    // Remove if quantity reaches 0
+    // Remove item if quantity reaches 0 or below
     state = state.where((item) => item.quantity > 0).toList();
   }
 
